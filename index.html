@@ -7,8 +7,6 @@
     
     <!-- Meta Tags para Tela Inicial de Celular (Android & iOS PWA) -->
     <meta name="theme-color" content="#0f172a">
-    <meta name="description" content="Ouça rádios AM, FM e web do Brasil e do mundo. Salve favoritas e leve seu backup.">
-    <meta name="color-scheme" content="dark">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -199,11 +197,6 @@
                         <option value="Alagoas">AL - Alagoas</option>
                         <option value="Sergipe">SE - Sergipe</option>
                         <option value="Piauí">PI - Piauí</option>
-                        <option value="Acre">AC - Acre</option>
-                        <option value="Amapá">AP - Amapá</option>
-                        <option value="Rondônia">RO - Rondônia</option>
-                        <option value="Roraima">RR - Roraima</option>
-                        <option value="Tocantins">TO - Tocantins</option>
                     </select>
 
                     <!-- Campo de Texto -->
@@ -285,22 +278,9 @@
                     </label>
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <label for="sortSelect" class="sr-only">Ordenar emissoras</label>
-                    <select id="sortSelect" aria-label="Ordenar emissoras"
-                        class="bg-slate-900 border border-slate-800 rounded-full px-2.5 py-1.5 text-xs text-slate-300 outline-none focus:border-amber-500">
-                        <option value="popular">Mais populares</option>
-                        <option value="name">Nome (A–Z)</option>
-                        <option value="clicks">Mais ouvidas</option>
-                    </select>
-                    <button id="refreshBtn" type="button" onclick="refreshStations()"
-                        class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-full border border-slate-800">
-                        ↻ Atualizar
-                    </button>
-                    <span id="stationCount" aria-live="polite" class="text-xs bg-slate-900 text-slate-400 px-3 py-1.5 rounded-full border border-slate-800">
-                        Buscando...
-                    </span>
-                </div>
+                <span id="stationCount" class="text-xs bg-slate-900 text-slate-400 px-3 py-1.5 rounded-full border border-slate-800">
+                    Buscando...
+                </span>
             </div>
         </div>
 
@@ -327,7 +307,7 @@
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
             </div>
             <h3 class="text-base sm:text-lg font-semibold text-slate-200 mb-1">Nenhuma estação encontrada</h3>
-            <p id="emptyMessage" class="text-xs sm:text-sm text-slate-400 max-w-md mb-5">Tente outro termo de busca, limpe o filtro de estado ou adicione sua rádio favorita manualmente.</p>
+            <p class="text-xs sm:text-sm text-slate-400 max-w-md mb-5">Tente outro termo de busca, limpe o filtro de estado ou adicione sua rádio favorita manualmente.</p>
             <div class="flex gap-3">
                 <button onclick="resetFilters()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold rounded-xl transition">
                     Ver Top Brasil
@@ -521,36 +501,20 @@
         let currentApiBase = API_SERVERS[0];
         let generatedAppIconUrl = '';
 
-        function loadSavedFavorites() {
-            try {
-                const saved = JSON.parse(localStorage.getItem('radio_helenio_favs') || '[]');
-                return Array.isArray(saved) ? saved.filter(item =>
-                    item && item.stationuuid && item.name && (item.url_resolved || item.url)
-                ) : [];
-            } catch (error) {
-                console.warn('Backup local de favoritos inválido; iniciando lista vazia.', error);
-                return [];
-            }
-        }
-
         const state = {
             stations: [],
             currentStation: null,
             isPlaying: false,
-            volume: Number(localStorage.getItem('radio_helenio_volume')) >= 0 ? Math.min(1, Number(localStorage.getItem('radio_helenio_volume'))) : 0.8,
+            volume: 0.8,
             isMuted: false,
             activeFilter: 'br-top',
-            favorites: loadSavedFavorites(),
-            requestId: 0,
-            playbackId: 0,
+            favorites: JSON.parse(localStorage.getItem('radio_helenio_favs') || '[]'),
             reconnectAttempts: 0,
             maxReconnectAttempts: 3,
             reconnectTimer: null,
             manualPause: false,
             sleepEndTime: null,
-            sleepInterval: null,
-            lastQuery: '',
-            lastFilter: 'br-top'
+            sleepInterval: null
         };
 
         // Referências DOM
@@ -596,15 +560,6 @@
             setupMediaSession();
             renderSkeletons();
             applyQuickFilter('br-top');
-            document.getElementById('sortSelect').addEventListener('change', () => {
-                state.stations = sortStations(state.stations);
-                renderStations(state.stations);
-            });
-            window.addEventListener('online', () => showToast('Conexão restabelecida. Você já pode atualizar as rádios.'));
-            window.addEventListener('offline', () => showToast('Sem conexão com a internet. As rádios online podem parar.', 'error'));
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') closeAddModal();
-            });
 
             // Fecha dropdown do sleep timer ao clicar fora
             document.addEventListener('click', (e) => {
@@ -807,10 +762,7 @@
         }
 
         async function applyQuickFilter(filter) {
-            const requestId = ++state.requestId;
             state.activeFilter = filter;
-            state.lastFilter = filter;
-            state.lastQuery = '';
             searchInput.value = '';
             
             document.querySelectorAll('.filter-btn').forEach(b => {
@@ -826,7 +778,7 @@
                 backupControls.classList.remove('hidden');
                 backupControls.classList.add('flex');
                 sectionTitle.innerHTML = `❤️ Suas Rádios Favoritas`;
-                state.stations = sortStations(state.favorites);
+                state.stations = state.favorites;
                 renderStations(state.stations);
                 return;
             } else {
@@ -851,11 +803,11 @@
                         break;
                     case 'fm':
                         titleHtml = `📻 Rádios FM${stateSuffix}`;
-                        endpoint = `stations/search?countrycode=BR${stateQuery}&order=votes&reverse=true&limit=100&hidebroken=true`;
+                        endpoint = `stations/search?name=FM&countrycode=BR${stateQuery}&order=votes&reverse=true&limit=45&hidebroken=true`;
                         break;
                     case 'am':
                         titleHtml = `📡 Rádios AM${stateSuffix}`;
-                        endpoint = `stations/search?countrycode=BR${stateQuery}&order=votes&reverse=true&limit=100&hidebroken=true`;
+                        endpoint = `stations/search?name=AM&countrycode=BR${stateQuery}&order=votes&reverse=true&limit=45&hidebroken=true`;
                         break;
                     case 'noticias':
                         titleHtml = `📰 Notícias, Jornalismo & Futebol${stateSuffix}`;
@@ -881,23 +833,13 @@
 
                 sectionTitle.innerHTML = titleHtml;
                 const data = await fetchFromRadioAPI(endpoint);
-                if (requestId !== state.requestId) return;
-                let results = data.filter(s => s.url_resolved || s.url);
-                if (filter === 'fm' || filter === 'am') {
-                    results = results.filter(s => detectBand(s) === filter.toUpperCase());
-                }
-                if (filter === 'internacional') {
-                    results = results.filter(s => (s.countrycode || '').toUpperCase() !== 'BR');
-                }
-                state.stations = sortStations(results);
+                state.stations = data.filter(s => s.url_resolved || s.url);
                 renderStations(state.stations);
             } catch (error) {
-                if (requestId === state.requestId) {
-                    showToast('Não foi possível carregar as estações. Verifique sua internet e tente novamente.', 'error');
-                    renderStations([]);
-                }
+                showToast('Não foi possível carregar as estações. Verifique sua internet.', 'error');
+                renderStations([]);
             } finally {
-                if (requestId === state.requestId) setLoadingState(false);
+                setLoadingState(false);
             }
         }
 
@@ -922,9 +864,6 @@
             backupControls.classList.add('hidden');
             backupControls.classList.remove('flex');
 
-            const requestId = ++state.requestId;
-            state.lastQuery = query;
-            state.lastFilter = '';
             setLoadingState(true);
             const stateParam = selectedState ? `&countrycode=BR&state=${encodeURIComponent(selectedState)}` : '';
             const labelState = selectedState ? ` em ${selectedState}` : '';
@@ -944,16 +883,13 @@
                     }
                 });
 
-                if (requestId !== state.requestId) return;
-                state.stations = sortStations(Array.from(mergedMap.values()));
+                state.stations = Array.from(mergedMap.values());
                 renderStations(state.stations);
             } catch (error) {
-                if (requestId === state.requestId) {
-                    showToast('Erro ao buscar estações. Confira a conexão e tente novamente.', 'error');
-                    renderStations([]);
-                }
+                showToast('Erro ao buscar estações.', 'error');
+                renderStations([]);
             } finally {
-                if (requestId === state.requestId) setLoadingState(false);
+                setLoadingState(false);
             }
         }
 
@@ -1001,39 +937,11 @@
             }
         }
 
-        function sortStations(stations) {
-            const mode = document.getElementById('sortSelect')?.value || 'popular';
-            const copy = [...(stations || [])];
-            if (mode === 'name') {
-                copy.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
-            } else if (mode === 'clicks') {
-                copy.sort((a, b) => (Number(b.clickcount || 0) - Number(a.clickcount || 0)));
-            } else {
-                copy.sort((a, b) => (Number(b.votes || 0) - Number(a.votes || 0)));
-            }
-            return copy;
-        }
-
-        function refreshStations() {
-            if (state.activeFilter === 'favoritos') {
-                state.stations = sortStations(state.favorites);
-                renderStations(state.stations);
-            } else if (state.lastQuery) {
-                executeSearch();
-            } else {
-                applyQuickFilter(state.lastFilter || state.activeFilter || 'br-top');
-            }
-        }
-
         function renderStations(stations) {
             stationCount.textContent = `${stations.length} ${stations.length === 1 ? 'estação' : 'estações'}`;
 
             if (!stations || stations.length === 0) {
                 stationsGrid.classList.add('hidden');
-                const emptyMessage = document.getElementById('emptyMessage');
-                if (emptyMessage) emptyMessage.textContent = !navigator.onLine
-                    ? 'Você está sem conexão. Verifique a internet e toque em Atualizar.'
-                    : 'Tente outro termo, escolha outro estado ou adicione uma rádio manualmente.';
                 emptyState.classList.remove('hidden');
                 emptyState.classList.add('flex');
                 return;
@@ -1146,7 +1054,6 @@
         }
 
         function playStation(station) {
-            const playbackId = ++state.playbackId;
             clearTimeout(state.reconnectTimer);
             state.reconnectAttempts = 0;
             state.manualPause = false;
@@ -1188,9 +1095,7 @@
             const playPromise = audio.play();
             if (playPromise !== undefined) {
                 playPromise.catch(err => {
-                    if (playbackId === state.playbackId && !state.manualPause) {
-                        handleStreamFailure(station, streamUrl);
-                    }
+                    handleStreamFailure(station, streamUrl);
                 });
             }
 
@@ -1324,16 +1229,14 @@
         function setupMediaSession() {
             if (!('mediaSession' in navigator)) return;
 
-            const handlers = {
-                play: () => { if (audio.paused) togglePlayPause(); },
-                pause: () => { if (!audio.paused) togglePlayPause(); },
-                stop: () => { state.manualPause = true; audio.pause(); },
-                previoustrack: () => playAdjacentStation(-1),
-                nexttrack: () => playAdjacentStation(1)
-            };
-            Object.entries(handlers).forEach(([action, handler]) => {
-                try { navigator.mediaSession.setActionHandler(action, handler); } catch (_) {}
+            navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+            navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+            navigator.mediaSession.setActionHandler('stop', () => {
+                state.manualPause = true;
+                audio.pause();
             });
+            navigator.mediaSession.setActionHandler('previoustrack', () => playAdjacentStation(-1));
+            navigator.mediaSession.setActionHandler('nexttrack', () => playAdjacentStation(1));
         }
 
         function updateMediaSessionMetadata(station) {
@@ -1418,7 +1321,6 @@
                 const val = parseInt(e.target.value, 10);
                 state.volume = val / 100;
                 audio.volume = state.volume;
-                try { localStorage.setItem('radio_helenio_volume', String(state.volume)); } catch (_) {}
                 if (state.volume > 0 && state.isMuted) {
                     state.isMuted = false;
                     audio.muted = false;
@@ -1487,11 +1389,7 @@
         });
 
         function saveFavorites() {
-            try {
-                localStorage.setItem('radio_helenio_favs', JSON.stringify(state.favorites));
-            } catch (error) {
-                showToast('Não foi possível salvar no armazenamento do navegador. Exporte um backup.', 'error');
-            }
+            localStorage.setItem('radio_helenio_favs', JSON.stringify(state.favorites));
             updateFavCounter();
             updatePlayerFavIcon();
         }
@@ -1513,7 +1411,6 @@
         // Modal de Adição Manual
         function openAddModal() {
             document.getElementById('addRadioModal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('customName').focus(), 50);
         }
 
         function closeAddModal() {
@@ -1529,14 +1426,6 @@
             const url = document.getElementById('customUrl').value.trim();
 
             if (!name || !url) return;
-            let parsedUrl;
-            try {
-                parsedUrl = new URL(url);
-                if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Protocolo inválido');
-            } catch (_) {
-                showToast('Informe um endereço de áudio válido começando com http:// ou https://.', 'error');
-                return;
-            }
 
             const newStation = {
                 stationuuid: 'custom-' + Date.now(),
@@ -1578,11 +1467,6 @@
         function importFavorites(event) {
             const file = event.target.files[0];
             if (!file) return;
-            if (file.size > 2 * 1024 * 1024) {
-                showToast('O arquivo de backup é muito grande (limite de 2 MB).', 'error');
-                event.target.value = '';
-                return;
-            }
 
             const reader = new FileReader();
             reader.onload = (e) => {
