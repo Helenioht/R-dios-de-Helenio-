@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rádio do Helenio - Sintonizador AM & FM Online</title>
+    
+    <!-- Meta Tags para Tela Inicial de Celular & Android TV -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Rádio do Helenio">
+    <meta name="application-name" content="Rádio do Helenio">
+
+    <!-- Links Dinâmicos para Ícone do App e Manifesto PWA -->
+    <link id="appFavicon" rel="icon" type="image/png" href="https://ibb.co/twKp6fSQ">
+    <link id="appleTouchIcon" rel="apple-touch-icon" href="https://ibb.co/twKp6fSQ">
+    <link id="webManifest" rel="manifest">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Forçar rolagem e barra visível */
+        html, body {
+            overflow-y: scroll !important;
+            height: auto;
+        }
+
+        /* Estilização agressiva para navegadores WebKit / TV */
+        ::-webkit-scrollbar {
+            width: 16px !important;
+            display: block !important;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617 !important;
+            border-left: 2px solid #1e293b !important;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f59e0b !important;
+            border-radius: 8px !important;
+            border: 3px solid #020617 !important;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #fbbf24 !important;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Estilo do Ponteiro Virtual de Mouse */
+        #virtualPointer {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 32px;
+            height: 32px;
+            pointer-events: none;
+            z-index: 99999;
+            transform: translate(-4px, -4px);
+            transition: transform 0.05s ease-out;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7));
+        }
+
+        /* Efeito visual nos elementos sob o cursor virtual */
+        .cursor-hover {
+            outline: 2px solid #f59e0b !important;
+            outline-offset: 2px;
+            background-color: rgba(245, 158, 11, 0.15) !important;
+        }
+
+        /* Animação de Equalizador */
+        .eq-bar {
+            width: 3px;
+            background-color: #f59e0b;
+            border-radius: 2px;
+            animation: bounce 0.8s infinite ease-in-out;
+        }
+        .eq-bar:nth-child(2) { animation-delay: 0.2s; }
+        .eq-bar:nth-child(3) { animation-delay: 0.4s; }
+        .eq-bar:nth-child(4) { animation-delay: 0.1s; }
+
+        @keyframes bounce {
+            0%, 100% { height: 4px; }
+            50% { height: 18px; }
+        }
+
+        /* Slider de Volume */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 15px;
+            width: 15px;
+            border-radius: 50%;
+            background: #f59e0b;
+            cursor: pointer;
+            margin-top: -5.5px;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950 pb-36 sm:pb-28">
+
+    <!-- Ponteiro de Mouse Virtual para TV -->
+    <div id="virtualPointer">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z" fill="#f59e0b" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+
+    <!-- Cabeçalho Principal -->
+    <header class="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3.5">
+                
+                <!-- Logo, Título e Ações Rápidas -->
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 shrink-0 overflow-hidden border border-amber-400/40">
+                            <img 
+                                id="headerAppIcon"
+                                src="https://ibb.co/twKp6fSQ" 
+                                alt="Ícone Rádio do Helenio" 
+                                class="w-full h-full object-cover"
+                                onerror="this.classList.add('hidden'); document.getElementById('headerFallbackSvg').classList.remove('hidden');"
+                            >
+                            <!-- SVG Rádio Inline (Fallback) -->
+                            <svg id="headerFallbackSvg" class="w-6 h-6 hidden" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9m14.2 0c3.9 3.9 3.9 10.3 0 14.2M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5m8.4 0c2.3 2.3 2.3 6.1 0 8.5M12 12h.01" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="font-display text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-white via-amber-100 to-amber-400 bg-clip-text text-transparent">
+                                Rádios Helenio
+                            </h1>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Utilitários (Sleep Timer + Adicionar + Sair) -->
+                    <div class="flex items-center gap-2">
+                        <!-- Botão Alternar Modo Ponteiro -->
+                        <button 
+                            id="togglePointerBtn"
+                            onclick="togglePointerMode()"
+                            title="Ativar/Desativar Ponteiro Virtual"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 border border-amber-500/50 text-amber-300 transition"
+                        >
+                            🖱️ <span id="pointerModeLabel" class="hidden sm:inline">Ponteiro: Ligado</span>
+                        </button>
+
+                        <!-- Botão Sleep Timer -->
+                        <div class="relative">
+                            <button 
+                                id="sleepTimerBtn" 
+                                onclick="toggleSleepMenu()"
+                                title="Temporizador para Desligar (Sleep Timer)"
+                                class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-300 transition"
+                            >
+                                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                                </svg>
+                                <span id="sleepTimerLabel" class="hidden sm:inline">Dormir</span>
+                                <span id="sleepCountdownBadge" class="hidden font-mono text-amber-400 font-bold"></span>
+                            </button>
+
+                            <!-- Dropdown Sleep Timer -->
+                            <div id="sleepMenu" class="hidden absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1.5 z-50">
+                                <div class="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                                    Desligar áudio em:
+                                </div>
+                                <button onclick="setSleepTimer(0)" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex justify-between">
+                                    <span>Desativado</span>
+                                </button>
+                                <button onclick="setSleepTimer(15)" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">15 minutos</button>
+                                <button onclick="setSleepTimer(30)" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">30 minutos</button>
+                                <button onclick="setSleepTimer(45)" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">45 minutos</button>
+                                <button onclick="setSleepTimer(60)" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">60 minutos</button>
+                                <button onclick="setSleepTimer(90)" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">90 minutos</button>
+                            </div>
+                        </div>
+
+                        <!-- Botão Adicionar Rádio Manualmente -->
+                        <button 
+                            onclick="openAddModal()"
+                            title="Adicionar URL de rádio manualmente"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 transition"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span class="hidden sm:inline">Adicionar</span>
+                        </button>
+
+                        <!-- Botão Sair do Aplicativo -->
+                        <button 
+                            onclick="exitApplication()"
+                            title="Sair do aplicativo"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-400 transition"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            <span class="hidden sm:inline">Sair</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Barra de Busca + Seletor de Estado (UF) -->
+                <form id="searchForm" class="flex-1 max-w-2xl w-full flex flex-col sm:flex-row gap-2">
+                    <!-- Seletor de Estado Brasileiro -->
+                    <select 
+                        id="stateSelect" 
+                        aria-label="Filtrar por Estado"
+                        class="bg-slate-900 border border-slate-700/80 focus:border-amber-500 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-slate-200 outline-none sm:w-44 shrink-0 cursor-pointer"
+                    >
+                        <option value="">🇧🇷 Todos os Estados</option>
+                        <option value="Minas Gerais">MG - Minas Gerais</option>
+                        <option value="São Paulo">SP - São Paulo</option>
+                        <option value="Rio de Janeiro">RJ - Rio de Janeiro</option>
+                        <option value="Bahia">BA - Bahia</option>
+                        <option value="Rio Grande do Sul">RS - Rio Grande do Sul</option>
+                        <option value="Paraná">PR - Paraná</option>
+                        <option value="Santa Catarina">SC - Santa Catarina</option>
+                        <option value="Goiás">GO - Goiás</option>
+                        <option value="Distrito Federal">DF - Distrito Federal</option>
+                        <option value="Pernambuco">PE - Pernambuco</option>
+                        <option value="Ceará">CE - Ceará</option>
+                        <option value="Espírito Santo">ES - Espírito Santo</option>
+                        <option value="Mato Grosso">MT - Mato Grosso</option>
+                        <option value="Mato Grosso do Sul">MS - Mato Grosso do Sul</option>
+                        <option value="Pará">PA - Pará</option>
+                        <option value="Amazonas">AM - Amazonas</option>
+                        <option value="Maranhão">MA - Maranhão</option>
+                        <option value="Paraíba">PB - Paraíba</option>
+                        <option value="Rio Grande do Norte">RN - Rio Grande do Norte</option>
+                        <option value="Alagoas">AL - Alagoas</option>
+                        <option value="Sergipe">SE - Sergipe</option>
+                        <option value="Piauí">PI - Piauí</option>
+                    </select>
+
+                    <!-- Campo de Texto -->
+                    <div class="relative flex items-center flex-1">
+                        <svg class="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            placeholder="Nome da rádio, cidade ou estilo (ex: Divinópolis, Jovem Pan)..." 
+                            class="w-full bg-slate-900 border border-slate-700/80 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 rounded-xl pl-10 pr-20 py-2.5 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition-all"
+                        >
+                        <button 
+                            type="submit" 
+                            class="absolute right-1.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 text-xs font-bold px-3.5 py-1.5 rounded-lg transition-all shadow"
+                        >
+                            Buscar
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+
+            <!-- Filtros Rápidos -->
+            <div class="mt-3 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                <button data-filter="br-top" class="filter-btn active shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500 text-slate-950 shadow-sm transition-all">
+                    🇧🇷 Top Brasil
+                </button>
+                <button data-filter="fm" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    📻 Rádios FM
+                </button>
+                <button data-filter="am" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    📡 Rádios AM
+                </button>
+                <button data-filter="noticias" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    📰 Notícias & Futebol
+                </button>
+                <button data-filter="sertanejo" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    🤠 Sertanejo
+                </button>
+                <button data-filter="mpb" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    🎸 MPB
+                </button>
+                <button data-filter="rock" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    ⚡ Rock Clássico
+                </button>
+                <button data-filter="internacional" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    🌍 Internacionais
+                </button>
+                <button data-filter="favoritos" class="filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all">
+                    ❤️ Favoritas (<span id="favCount">0</span>)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        
+        <!-- Barra de Título da Seção e Backup de Favoritos -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 id="sectionTitle" class="text-base sm:text-lg font-display font-bold text-slate-100 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                Principais Rádios do Brasil
+            </h2>
+
+            <div class="flex items-center gap-2">
+                <!-- Controles de Backup (Visíveis na aba Favoritos) -->
+                <div id="backupControls" class="hidden items-center gap-2">
+                    <button onclick="exportFavorites()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Exportar Backup
+                    </button>
+                    <label class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Importar Backup
+                        <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importFavorites(event)">
+                    </label>
+                </div>
+
+                <span id="stationCount" class="text-xs bg-slate-900 text-slate-400 px-3 py-1.5 rounded-full border border-slate-800">
+                    Buscando...
+                </span>
+            </div>
+        </div>
+
+        <!-- Notificação Toast Flutuante -->
+        <div id="toastMessage" class="fixed top-20 right-4 z-50 transform translate-x-full opacity-0 transition-all duration-300 bg-slate-900 border-l-4 border-amber-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-start gap-3 max-w-sm">
+            <div id="toastIcon" class="mt-0.5 text-amber-400 shrink-0"></div>
+            <div class="flex-1">
+                <p id="toastText" class="text-xs sm:text-sm font-medium leading-snug"></p>
+                <a id="toastActionLink" href="#" target="_blank" rel="noopener noreferrer" class="hidden mt-1.5 inline-block text-xs font-bold text-amber-400 underline hover:text-amber-300">
+                    Abrir link do stream em nova aba →
+                </a>
+            </div>
+        </div>
+
+        <!-- Esqueleto de Carregamento -->
+        <div id="loadingGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5"></div>
+
+        <!-- Grid de Estações -->
+        <div id="stationsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 hidden"></div>
+
+        <!-- Estado Vazio -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-14 text-center">
+            <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-slate-500">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
+            </div>
+            <h3 class="text-base sm:text-lg font-semibold text-slate-200 mb-1">Nenhuma estação encontrada</h3>
+            <p class="text-xs sm:text-sm text-slate-400 max-w-md mb-5">Tente outro termo de busca, limpe o filtro de estado ou adicione sua rádio favorita manualmente.</p>
+            <div class="flex gap-3">
+                <button onclick="resetFilters()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold rounded-xl transition">
+                    Ver Top Brasil
+                </button>
+                <button onclick="openAddModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-medium rounded-xl transition">
+                    + Adicionar URL
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Botões Flutuantes de Rolagem da Tela -->
+    <div id="screenScrollControls" class="fixed bottom-28 sm:bottom-24 right-4 z-30 flex flex-col gap-2">
+        <button 
+            type="button"
+            onclick="scrollScreen('top')" 
+            title="Ir para o topo da tela"
+            aria-label="Ir para o topo da tela"
+            class="w-10 h-10 rounded-xl bg-slate-900/95 hover:bg-slate-800 border border-slate-700 text-amber-400 shadow-lg flex items-center justify-center text-sm font-bold transition active:scale-95"
+        >
+            ⤒
+        </button>
+        <button 
+            type="button"
+            onclick="scrollScreen('up')" 
+            title="Rolar tela para cima"
+            aria-label="Rolar tela para cima"
+            class="w-11 h-11 rounded-xl bg-slate-900/95 hover:bg-slate-800 border border-amber-500/50 text-amber-400 shadow-lg flex items-center justify-center text-base font-bold transition active:scale-95"
+        >
+            ▲
+        </button>
+        <button 
+            type="button"
+            onclick="scrollScreen('down')" 
+            title="Rolar tela para baixo"
+            aria-label="Rolar tela para baixo"
+            class="w-11 h-11 rounded-xl bg-slate-900/95 hover:bg-slate-800 border border-amber-500/50 text-amber-400 shadow-lg flex items-center justify-center text-base font-bold transition active:scale-95"
+        >
+            ▼
+        </button>
+        <button 
+            type="button"
+            onclick="scrollScreen('bottom')" 
+            title="Ir para o final da tela"
+            aria-label="Ir para o final da tela"
+            class="w-10 h-10 rounded-xl bg-slate-900/95 hover:bg-slate-800 border border-slate-700 text-amber-400 shadow-lg flex items-center justify-center text-sm font-bold transition active:scale-95"
+        >
+            ⤓
+        </button>
+    </div>
+
+    <!-- Modal: Adicionar Rádio Customizada -->
+    <div id="addRadioModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-display font-bold text-lg text-white">Adicionar Rádio Manualmente</h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form id="customRadioForm" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nome da Emissora *</label>
+                    <input type="text" id="customName" required placeholder="Ex: Rádio Cultura 95.5 FM" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Cidade / Estado</label>
+                        <input type="text" id="customLocation" placeholder="Ex: Divinópolis, MG" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Banda</label>
+                        <select id="customBand" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2.5 text-sm text-white outline-none">
+                            <option value="FM">FM</option>
+                            <option value="AM">AM</option>
+                            <option value="WEB">WEB Rádio</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">URL do Stream de Áudio (.mp3, .aac, .m3u8) *</label>
+                    <input type="url" id="customUrl" required placeholder="https://stream.exemplo.com.br/radio.mp3" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeAddModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 shadow">Salvar e Ouvir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Player Fixo Inferior Completo -->
+    <footer class="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3">
+            <div class="flex items-center justify-between gap-2 sm:gap-4">
+                
+                <!-- Informações da Estação -->
+                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                    <div class="relative w-11 h-11 sm:w-14 sm:h-14 rounded-xl bg-slate-950 border border-slate-700/80 flex items-center justify-center overflow-hidden shrink-0">
+                        <img 
+                            id="playerLogo" 
+                            src="https://ibb.co/twKp6fSQ" 
+                            alt="Logo" 
+                            class="w-full h-full object-cover"
+                            onerror="this.classList.add('hidden'); document.getElementById('playerDefaultIcon').classList.remove('hidden');"
+                        >
+                        <svg id="playerDefaultIcon" class="w-6 h-6 text-slate-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9m14.2 0c3.9 3.9 3.9 10.3 0 14.2M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5m8.4 0c2.3 2.3 2.3 6.1 0 8.5M12 12h.01" />
+                        </svg>
+                        
+                        <!-- Equalizador Animado -->
+                        <div id="playerEqualizer" class="hidden absolute inset-0 bg-slate-950/75 flex items-end justify-center gap-1 pb-2.5">
+                            <div class="eq-bar"></div>
+                            <div class="eq-bar"></div>
+                            <div class="eq-bar"></div>
+                            <div class="eq-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5">
+                            <h3 id="playerStationName" class="font-display font-bold text-xs sm:text-base text-white truncate">
+                                Nenhuma rádio sintonizada
+                            </h3>
+                            <span id="playerBandBadge" class="hidden shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                FM
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-600 shrink-0"></span>
+                            <p id="playerStatusText" class="text-[11px] sm:text-xs text-slate-400 truncate">
+                                Selecione uma estação acima para ouvir ao vivo
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controles de Reprodução (Anterior, Play/Pause, Próxima, Favorito) -->
+                <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+                    <button 
+                        id="prevStationBtn" 
+                        onclick="playAdjacentStation(-1)"
+                        disabled
+                        title="Estação Anterior"
+                        class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
+                    >
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                    </button>
+
+                    <button 
+                        id="mainPlayPauseBtn" 
+                        disabled
+                        aria-label="Tocar ou Pausar"
+                        title="Tocar / Pausar (Controle Remoto: OK / Enter)"
+                        class="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/25 active:scale-95 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    >
+                        <svg id="iconPlay" class="w-5 h-5 sm:w-6 sm:h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="iconPause" class="w-5 h-5 sm:w-6 sm:h-6 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+
+                    <button 
+                        id="nextStationBtn" 
+                        onclick="playAdjacentStation(1)"
+                        disabled
+                        title="Próxima Estação"
+                        class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
+                    >
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                    </button>
+
+                    <button 
+                        id="playerFavBtn" 
+                        disabled
+                        title="Favoritar Rádio"
+                        class="hidden md:flex w-9 h-9 rounded-full items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition"
+                    >
+                        <svg id="playerFavSvg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+                </div>
+
+                <!-- Controle de Volume -->
+                <div class="flex items-center justify-end gap-2 flex-1 max-w-[110px] sm:max-w-[190px]">
+                    <button 
+                        id="muteBtn" 
+                        aria-label="Mudo"
+                        title="Ativar/Desativar Mudo"
+                        class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 transition shrink-0"
+                    >
+                        <svg id="volHighSvg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                        <svg id="volMuteSvg" class="w-5 h-5 text-rose-400 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+                    </button>
+                    
+                    <input 
+                        type="range" 
+                        id="volumeSlider" 
+                        min="0" 
+                        max="100" 
+                        value="80" 
+                        aria-label="Controle de Volume"
+                        class="w-full"
+                    >
+                    <span id="volumePercent" class="hidden lg:inline-block text-xs font-mono text-slate-400 w-9 text-right">
+                        80%
+                    </span>
+                </div>
+
+            </div>
+        </div>
+    </footer>
+
+    <!-- Elemento de Áudio HTML5 -->
+    <audio id="audioPlayer" preload="none" playsinline></audio>
+
+    <script>
+        /**
+         * Rádio do Helenio - Sintonizador Digital com Ponteiro Virtual, Ícone Personalizado e Botões de Rolagem
+         */
+
+        const APP_ICON_URL = 'https://ibb.co/twKp6fSQ';
+
+        const API_SERVERS = [
+            'https://de1.api.radio-browser.info',
+            'https://fi1.api.radio-browser.info',
+            'https://at1.api.radio-browser.info',
+            'https://nl1.api.radio-browser.info'
+        ];
+        let currentApiBase = API_SERVERS[0];
+        let generatedAppIconUrl = APP_ICON_URL;
+
+        const state = {
+            stations: [],
+            currentStation: null,
+            isPlaying: false,
+            volume: 0.8,
+            isMuted: false,
+            activeFilter: 'br-top',
+            favorites: JSON.parse(localStorage.getItem('radio_helenio_favs') || '[]'),
+            reconnectAttempts: 0,
+            maxReconnectAttempts: 3,
+            reconnectTimer: null,
+            manualPause: false,
+            sleepEndTime: null,
+            sleepInterval: null,
+            pointerEnabled: true,
+            pointerX: window.innerWidth / 2,
+            pointerY: window.innerHeight / 2,
+            pointerSpeed: 28
+        };
+
+        // Referências DOM
+        const audio = document.getElementById('audioPlayer');
+        const stationsGrid = document.getElementById('stationsGrid');
+        const loadingGrid = document.getElementById('loadingGrid');
+        const emptyState = document.getElementById('emptyState');
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const stateSelect = document.getElementById('stateSelect');
+        const sectionTitle = document.getElementById('sectionTitle');
+        const stationCount = document.getElementById('stationCount');
+        const favCount = document.getElementById('favCount');
+        const backupControls = document.getElementById('backupControls');
+        const virtualPointer = document.getElementById('virtualPointer');
+
+        // Player DOM
+        const mainPlayPauseBtn = document.getElementById('mainPlayPauseBtn');
+        const prevStationBtn = document.getElementById('prevStationBtn');
+        const nextStationBtn = document.getElementById('nextStationBtn');
+        const iconPlay = document.getElementById('iconPlay');
+        const iconPause = document.getElementById('iconPause');
+        const playerStationName = document.getElementById('playerStationName');
+        const playerStatusText = document.getElementById('playerStatusText');
+        const statusDot = document.getElementById('statusDot');
+        const playerLogo = document.getElementById('playerLogo');
+        const playerDefaultIcon = document.getElementById('playerDefaultIcon');
+        const playerEqualizer = document.getElementById('playerEqualizer');
+        const playerBandBadge = document.getElementById('playerBandBadge');
+        const playerFavBtn = document.getElementById('playerFavBtn');
+        const playerFavSvg = document.getElementById('playerFavSvg');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumePercent = document.getElementById('volumePercent');
+        const muteBtn = document.getElementById('muteBtn');
+        const volHighSvg = document.getElementById('volHighSvg');
+        const volMuteSvg = document.getElementById('volMuteSvg');
+
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', () => {
+            setupMobileHomeScreenIcon();
+            updateFavCounter();
+            setupVolumeControls();
+            setupAudioEvents();
+            setupMediaSession();
+            setupVirtualMousePointer();
+            renderSkeletons();
+            applyQuickFilter('br-top');
+            updatePointerPosition();
+
+            document.addEventListener('click', (e) => {
+                const menu = document.getElementById('sleepMenu');
+                const btn = document.getElementById('sleepTimerBtn');
+                if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                    menu.classList.add('hidden');
+                }
+            });
+        });
+
+        /* ==========================================================================
+           0. CONTROLE DE ROLAGEM DA TELA
+           ========================================================================== */
+        function scrollScreen(direction) {
+            const step = Math.round(window.innerHeight * 0.65);
+            if (direction === 'up') {
+                window.scrollBy({ top: -step, behavior: 'smooth' });
+            } else if (direction === 'down') {
+                window.scrollBy({ top: step, behavior: 'smooth' });
+            } else if (direction === 'top') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (direction === 'bottom') {
+                window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+            }
+        }
+
+        /* ==========================================================================
+           1. PONTEIRO VIRTUAL DE MOUSE & ROLAGEM AUTOMÁTICA
+           ========================================================================== */
+        function togglePointerMode() {
+            state.pointerEnabled = !state.pointerEnabled;
+            const label = document.getElementById('pointerModeLabel');
+            const btn = document.getElementById('togglePointerBtn');
+            if (state.pointerEnabled) {
+                virtualPointer.style.display = 'block';
+                label.textContent = 'Ponteiro: Ligado';
+                btn.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 border border-amber-500/50 text-amber-300 transition';
+                showToast('Ponteiro virtual ativado para o controle remoto.');
+            } else {
+                virtualPointer.style.display = 'none';
+                label.textContent = 'Ponteiro: Desligado';
+                btn.className = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 border border-slate-700 text-slate-400 transition';
+                clearHoverEffects();
+                showToast('Ponteiro virtual desativado.');
+            }
+        }
+
+        function updatePointerPosition() {
+            virtualPointer.style.left = `${state.pointerX}px`;
+            virtualPointer.style.top = `${state.pointerY}px`;
+            
+            // Rolagem automática se o ponteiro chegar nas bordas superior ou inferior
+            const edgeThreshold = 100;
+            if (state.pointerY < edgeThreshold) {
+                window.scrollBy({ top: -20, behavior: 'smooth' });
+            } else if (state.pointerY > window.innerHeight - edgeThreshold) {
+                window.scrollBy({ top: 20, behavior: 'smooth' });
+            }
+
+            checkElementUnderPointer();
+        }
+
+        function checkElementUnderPointer() {
+            if (!state.pointerEnabled) return;
+            clearHoverEffects();
+            const elem = document.elementFromPoint(state.pointerX, state.pointerY);
+            if (elem) {
+                const clickable = elem.closest('button, input, select, a, label');
+                if (clickable) {
+                    clickable.classList.add('cursor-hover');
+                }
+            }
+        }
+
+        function clearHoverEffects() {
+            document.querySelectorAll('.cursor-hover').forEach(el => el.classList.remove('cursor-hover'));
+        }
+
+        function setupVirtualMousePointer() {
+            window.addEventListener('keydown', (e) => {
+                if (!state.pointerEnabled) {
+                    if (e.key === 'Escape' || e.key === 'BrowserBack' || e.key === 'GoBack') {
+                        e.preventDefault();
+                        exitApplication();
+                    }
+                    return;
+                }
+
+                const step = state.pointerSpeed;
+                let handled = true;
+
+                switch (e.key) {
+                    case 'ArrowUp':
+                        state.pointerY = Math.max(10, state.pointerY - step);
+                        break;
+                    case 'ArrowDown':
+                        state.pointerY = Math.min(window.innerHeight - 10, state.pointerY + step);
+                        break;
+                    case 'ArrowLeft':
+                        state.pointerX = Math.max(10, state.pointerX - step);
+                        break;
+                    case 'ArrowRight':
+                        state.pointerX = Math.min(window.innerWidth - 10, state.pointerX + step);
+                        break;
+                    case 'Enter':
+                    case 'Select':
+                        const target = document.elementFromPoint(state.pointerX, state.pointerY);
+                        if (target) {
+                            const clickable = target.closest('button, input, select, a, label');
+                            if (clickable) {
+                                clickable.click();
+                                if (clickable.tagName === 'INPUT' || clickable.tagName === 'SELECT') {
+                                    clickable.focus();
+                                }
+                            } else {
+                                target.click();
+                            }
+                        }
+                        break;
+                    case 'Escape':
+                    case 'BrowserBack':
+                    case 'GoBack':
+                        e.preventDefault();
+                        const addModal = document.getElementById('addRadioModal');
+                        const sleepMenu = document.getElementById('sleepMenu');
+                        if (!addModal.classList.contains('hidden')) {
+                            closeAddModal();
+                        } else if (!sleepMenu.classList.contains('hidden')) {
+                            sleepMenu.classList.add('hidden');
+                        } else {
+                            exitApplication();
+                        }
+                        break;
+                    case 'MediaPlayPause':
+                    case 'AudioPlay':
+                    case 'AudioPause':
+                        e.preventDefault();
+                        togglePlayPause();
+                        break;
+                    case 'MediaTrackNext':
+                        e.preventDefault();
+                        playAdjacentStation(1);
+                        break;
+                    case 'MediaTrackPrevious':
+                        e.preventDefault();
+                        playAdjacentStation(-1);
+                        break;
+                    default:
+                        handled = false;
+                        break;
+                }
+
+                if (handled) {
+                    e.preventDefault();
+                    updatePointerPosition();
+                }
+            });
+        }
+
+        function exitApplication() {
+            if (confirm('Deseja realmente sair do Rádio do Helenio?')) {
+                window.close();
+                setTimeout(() => {
+                    window.location.href = 'about:blank';
+                }, 300);
+            }
+        }
+
+        /* ==========================================================================
+           2. ÍCONE DO APLICATIVO & MANIFESTO PWA (COM FALLBACK DINÂMICO)
+           ========================================================================== */
+        function generateAppIconDataUrl(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const s = size / 512;
+
+            const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+            bgGrad.addColorStop(0, '#1e293b');
+            bgGrad.addColorStop(1, '#090d16');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, size, size);
+
+            const glow = ctx.createRadialGradient(size * 0.5, size * 0.5, 10 * s, size * 0.5, size * 0.5, 240 * s);
+            glow.addColorStop(0, 'rgba(245, 158, 11, 0.28)');
+            glow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+            ctx.fillStyle = glow;
+            ctx.fillRect(0, 0, size, size);
+
+            ctx.save();
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 14 * s;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(155 * s, 185 * s);
+            ctx.lineTo(365 * s, 72 * s);
+            ctx.stroke();
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(368 * s, 70 * s, 16 * s, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+            ctx.lineWidth = 9 * s;
+            [36, 62].forEach(radius => {
+                ctx.beginPath();
+                ctx.arc(368 * s, 70 * s, radius * s, -0.35 * Math.PI, 0.25 * Math.PI);
+                ctx.stroke();
+            });
+            ctx.restore();
+
+            const bodyX = 86 * s, bodyY = 175 * s, bodyW = 340 * s, bodyH = 240 * s, r = 42 * s;
+            const bodyGrad = ctx.createLinearGradient(bodyX, bodyY, bodyX, bodyY + bodyH);
+            bodyGrad.addColorStop(0, '#fbbf24');
+            bodyGrad.addColorStop(1, '#d97706');
+
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath();
+            ctx.roundRect(bodyX, bodyY, bodyW, bodyH, r);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 5 * s;
+            ctx.stroke();
+
+            const spkX = 185 * s, spkY = 305 * s, spkR = 72 * s;
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(spkX, spkY, spkR, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 6 * s;
+            ctx.stroke();
+
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(spkX, spkY, 34 * s, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(spkX, spkY, 12 * s, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(282 * s, 215 * s, 114 * s, 68 * s, 14 * s);
+            ctx.fill();
+
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 6 * s;
+            ctx.beginPath();
+            ctx.moveTo(338 * s, 223 * s);
+            ctx.lineTo(338 * s, 275 * s);
+            ctx.stroke();
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = `bold ${20 * s}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('AM • FM', 339 * s, 256 * s);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(339 * s, 342 * s, 38 * s, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = `800 ${26 * s}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('RH', 339 * s, 344 * s);
+
+            return canvas.toDataURL('image/png');
+        }
+
+        function applyManifestWithIcon(iconUrl192, iconUrl512) {
+            document.getElementById('appFavicon').href = iconUrl192;
+            document.getElementById('appleTouchIcon').href = iconUrl512;
+            generatedAppIconUrl = iconUrl512;
+
+            const manifest = {
+                name: 'Rádio do Helenio',
+                short_name: 'Rádio Helenio',
+                description: 'Sintonizador Digital de Rádios AM & FM Online',
+                start_url: window.location.href,
+                display: 'standalone',
+                background_color: '#020617',
+                theme_color: '#0f172a',
+                orientation: 'portrait',
+                icons: [
+                    { src: iconUrl192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+                    { src: iconUrl512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+                ]
+            };
+
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+            document.getElementById('webManifest').href = URL.createObjectURL(manifestBlob);
+        }
+
+        function setupMobileHomeScreenIcon() {
+            try {
+                // Configura inicialmente com a URL fornecida
+                applyManifestWithIcon(APP_ICON_URL, APP_ICON_URL);
+
+                // Testa se a URL carrega como imagem; caso contrário usa o ícone vetorial gerado
+                const testImg = new Image();
+                testImg.onload = () => {
+                    applyManifestWithIcon(APP_ICON_URL, APP_ICON_URL);
+                };
+                testImg.onerror = () => {
+                    const fallback192 = generateAppIconDataUrl(192);
+                    const fallback512 = generateAppIconDataUrl(512);
+                    applyManifestWithIcon(fallback192, fallback512);
+                };
+                testImg.src = APP_ICON_URL;
+            } catch (err) {
+                console.warn('Falha ao configurar ícone PWA:', err);
+            }
+        }
+
+        /* ==========================================================================
+           3. BUSCA AVANÇADA, FILTROS POR ESTADO (UF) & FALLBACK DE SERVIDORES
+           ========================================================================== */
+        async function fetchFromRadioAPI(endpoint) {
+            for (let i = 0; i < API_SERVERS.length; i++) {
+                const server = API_SERVERS[i];
+                try {
+                    const response = await fetch(`${server}/json/${endpoint}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) throw new Error('Erro HTTP API');
+                    currentApiBase = server;
+                    return await response.json();
+                } catch (err) {
+                    console.warn(`Servidor ${server} indisponível, tentando próximo...`);
+                }
+            }
+            throw new Error('Servidores de rádio indisponíveis no momento.');
+        }
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyQuickFilter(btn.getAttribute('data-filter'));
+            });
+        });
+
+        stateSelect.addEventListener('change', () => {
+            executeSearch();
+        });
+
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            executeSearch();
+        });
+
+        function resetFilters() {
+            searchInput.value = '';
+            stateSelect.value = '';
+            applyQuickFilter('br-top');
+        }
+
+        async function applyQuickFilter(filter) {
+            state.activeFilter = filter;
+            searchInput.value = '';
+            
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                if (b.getAttribute('data-filter') === filter) {
+                    b.className = 'filter-btn active shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500 text-slate-950 shadow-sm transition-all';
+                } else {
+                    b.className = 'filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all';
+                }
+            });
+
+            if (filter === 'favoritos') {
+                backupControls.classList.remove('hidden');
+                backupControls.classList.add('flex');
+                sectionTitle.innerHTML = `❤️ Suas Rádios Favoritas`;
+                state.stations = state.favorites;
+                renderStations(state.stations);
+                return;
+            } else {
+                backupControls.classList.add('hidden');
+                backupControls.classList.remove('flex');
+            }
+
+            const selectedState = stateSelect.value;
+            const stateQuery = selectedState ? `&state=${encodeURIComponent(selectedState)}` : '';
+            const stateSuffix = selectedState ? ` (${selectedState})` : '';
+
+            setLoadingState(true);
+
+            try {
+                let endpoint = '';
+                let titleHtml = '';
+
+                switch (filter) {
+                    case 'br-top':
+                        titleHtml = `🇧🇷 Principais Rádios${stateSuffix || ' do Brasil'}`;
+                        endpoint = `stations/search?countrycode=BR${stateQuery}&order=votes&reverse=true&limit=45&hidebroken=true`;
+                        break;
+                    case 'fm':
+                        titleHtml = `📻 Rádios FM${stateSuffix}`;
+                        endpoint = `stations/search?name=FM&countrycode=BR${stateQuery}&order=votes&reverse=true&limit=45&hidebroken=true`;
+                        break;
+                    case 'am':
+                        titleHtml = `📡 Rádios AM${stateSuffix}`;
+                        endpoint = `stations/search?name=AM&countrycode=BR${stateQuery}&order=votes&reverse=true&limit=45&hidebroken=true`;
+                        break;
+                    case 'noticias':
+                        titleHtml = `📰 Notícias, Jornalismo & Futebol${stateSuffix}`;
+                        endpoint = `stations/search?tag=news&countrycode=BR${stateQuery}&order=votes&reverse=true&limit=40&hidebroken=true`;
+                        break;
+                    case 'sertanejo':
+                        titleHtml = `🤠 Rádios Sertanejo${stateSuffix}`;
+                        endpoint = `stations/search?tag=sertanejo${stateQuery}&order=votes&reverse=true&limit=40&hidebroken=true`;
+                        break;
+                    case 'mpb':
+                        titleHtml = `🎸 Rádios MPB${stateSuffix}`;
+                        endpoint = `stations/search?tag=mpb${stateQuery}&order=votes&reverse=true&limit=40&hidebroken=true`;
+                        break;
+                    case 'rock':
+                        titleHtml = `⚡ Rock Clássico${stateSuffix}`;
+                        endpoint = `stations/search?tag=classic%20rock${stateQuery}&order=votes&reverse=true&limit=40&hidebroken=true`;
+                        break;
+                    case 'internacional':
+                        titleHtml = `🌍 Rádios Internacionais`;
+                        endpoint = `stations/topvote/45`;
+                        break;
+                }
+
+                sectionTitle.innerHTML = titleHtml;
+                const data = await fetchFromRadioAPI(endpoint);
+                state.stations = data.filter(s => s.url_resolved || s.url);
+                renderStations(state.stations);
+            } catch (error) {
+                showToast('Não foi possível carregar as estações. Verifique sua internet.', 'error');
+                renderStations([]);
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        async function executeSearch() {
+            const query = searchInput.value.trim();
+            const selectedState = stateSelect.value;
+
+            if (!query && !selectedState) {
+                applyQuickFilter('br-top');
+                return;
+            }
+
+            if (!query && selectedState) {
+                applyQuickFilter(state.activeFilter === 'favoritos' || state.activeFilter === 'internacional' ? 'br-top' : state.activeFilter);
+                return;
+            }
+
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.className = 'filter-btn shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition-all';
+            });
+            backupControls.classList.add('hidden');
+            backupControls.classList.remove('flex');
+
+            setLoadingState(true);
+            const stateParam = selectedState ? `&countrycode=BR&state=${encodeURIComponent(selectedState)}` : '';
+            const labelState = selectedState ? ` em ${selectedState}` : '';
+            sectionTitle.innerHTML = `🔍 Resultados para "${escapeHTML(query)}"${escapeHTML(labelState)}`;
+
+            try {
+                const encoded = encodeURIComponent(query);
+                const [byName, byTag] = await Promise.all([
+                    fetchFromRadioAPI(`stations/search?name=${encoded}${stateParam}&order=votes&reverse=true&limit=35&hidebroken=true`),
+                    fetchFromRadioAPI(`stations/search?tag=${encoded}${stateParam}&order=votes&reverse=true&limit=20&hidebroken=true`)
+                ]);
+
+                const mergedMap = new Map();
+                [...byName, ...byTag].forEach(station => {
+                    if ((station.url_resolved || station.url) && !mergedMap.has(station.stationuuid)) {
+                        mergedMap.set(station.stationuuid, station);
+                    }
+                });
+
+                state.stations = Array.from(mergedMap.values());
+                renderStations(state.stations);
+            } catch (error) {
+                showToast('Erro ao buscar estações.', 'error');
+                renderStations([]);
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        /* ==========================================================================
+           4. DETECTOR DE STREAMS HTTP (MIXED CONTENT) & RENDERIZAÇÃO DOS CARDS
+           ========================================================================== */
+        function isMixedContentHttp(streamUrl) {
+            return window.location.protocol === 'https:' && /^http:\/\//i.test(streamUrl || '');
+        }
+
+        function detectBand(station) {
+            if (station.customBand) return station.customBand;
+            const text = `${station.name} ${station.tags}`.toUpperCase();
+            if (/\bAM\b/.test(text) || /\b\d{3,4}\s*KHZ\b/.test(text)) return 'AM';
+            if (/\bFM\b/.test(text) || /\b\d{2,3}[.,]\d\b/.test(text)) return 'FM';
+            return 'WEB';
+        }
+
+        function renderSkeletons() {
+            loadingGrid.innerHTML = Array(8).fill('').map(() => `
+                <div class="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 animate-pulse">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-slate-800 shrink-0"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="h-4 bg-slate-800 rounded w-3/4"></div>
+                            <div class="h-3 bg-slate-800 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center justify-between">
+                        <div class="h-5 bg-slate-800 rounded w-16"></div>
+                        <div class="w-16 h-7 rounded-full bg-slate-800"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function setLoadingState(isLoading) {
+            if (isLoading) {
+                loadingGrid.classList.remove('hidden');
+                stationsGrid.classList.add('hidden');
+                emptyState.classList.add('hidden');
+                stationCount.textContent = 'Sintonizando...';
+            } else {
+                loadingGrid.classList.add('hidden');
+            }
+        }
+
+        function renderStations(stations) {
+            stationCount.textContent = `${stations.length} ${stations.length === 1 ? 'estação' : 'estações'}`;
+
+            if (!stations || stations.length === 0) {
+                stationsGrid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            emptyState.classList.remove('flex');
+            stationsGrid.classList.remove('hidden');
+
+            stationsGrid.innerHTML = stations.map(station => {
+                const isCurrent = state.currentStation && state.currentStation.stationuuid === station.stationuuid;
+                const isCurrentPlaying = isCurrent && state.isPlaying;
+                const isFav = state.favorites.some(f => f.stationuuid === station.stationuuid);
+                const band = detectBand(station);
+                const streamUrl = station.url_resolved || station.url;
+                const httpWarning = isMixedContentHttp(streamUrl);
+                
+                const locationParts = [station.state, station.country].filter(Boolean);
+                const locationStr = locationParts.length > 0 ? locationParts.join(', ') : 'Transmissão Online';
+
+                let bandStyle = 'bg-slate-800 text-slate-300 border-slate-700';
+                if (band === 'FM') bandStyle = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+                if (band === 'AM') bandStyle = 'bg-sky-500/15 text-sky-400 border-sky-500/30';
+
+                return `
+                    <div class="group relative bg-slate-900/85 hover:bg-slate-800/90 border ${isCurrent ? 'border-amber-500 ring-1 ring-amber-500/40' : 'border-slate-800/90 hover:border-slate-700'} rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between shadow-sm">
+                        <div class="flex items-start gap-3">
+                            <div class="relative w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                                ${station.favicon ? `
+                                    <img src="${escapeHTML(station.favicon)}" alt="" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="hidden w-full h-full items-center justify-center text-slate-600">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9m14.2 0c3.9 3.9 3.9 10.3 0 14.2M12 12h.01"/></svg>
+                                    </div>
+                                ` : `
+                                    <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9m14.2 0c3.9 3.9 3.9 10.3 0 14.2M12 12h.01"/></svg>
+                                `}
+                                ${isCurrentPlaying ? `
+                                    <div class="absolute inset-0 bg-slate-950/75 flex items-end justify-center gap-1 pb-2.5">
+                                        <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-start justify-between gap-1">
+                                    <h3 class="font-display font-bold text-sm text-white leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors" title="${escapeHTML(station.name)}">
+                                        ${escapeHTML(station.name)}
+                                    </h3>
+                                    <button onclick="toggleFavorite('${station.stationuuid}', event)" title="${isFav ? 'Remover dos favoritos' : 'Favoritar'}" class="text-slate-500 hover:text-rose-500 p-1 -mr-1 -mt-1 transition shrink-0">
+                                        <svg class="w-4 h-4 ${isFav ? 'text-rose-500 fill-rose-500' : ''}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1 truncate">📍 ${escapeHTML(locationStr)}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-3.5 pt-3 border-t border-slate-800/70 flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5 overflow-hidden">
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${bandStyle} shrink-0">${band}</span>
+                                ${httpWarning ? `
+                                    <span title="Stream HTTP sem criptografia (pode ser bloqueado em páginas HTTPS)" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0">
+                                        HTTP
+                                    </span>
+                                ` : ''}
+                                ${station.isCustom ? `
+                                    <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                                        Manual
+                                    </span>
+                                ` : ''}
+                            </div>
+
+                            <button 
+                                onclick="playStationById('${station.stationuuid}')"
+                                class="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 ${
+                                    isCurrentPlaying 
+                                    ? 'bg-slate-700 hover:bg-slate-600 text-amber-400' 
+                                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                                }"
+                            >
+                                <span>${isCurrentPlaying ? '❚❚ Pausar' : '▶ Ouvir'}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /* ==========================================================================
+           5. REPRODUÇÃO, RECONEXÃO AUTOMÁTICA & MEDIA SESSION API (TELA DE BLOQUEIO)
+           ========================================================================== */
+        function playStationById(uuid) {
+            const station = state.stations.find(s => s.stationuuid === uuid) 
+                         || state.favorites.find(s => s.stationuuid === uuid);
+            if (!station) return;
+
+            if (state.currentStation && state.currentStation.stationuuid === uuid) {
+                togglePlayPause();
+                return;
+            }
+            playStation(station);
+        }
+
+        function playAdjacentStation(direction) {
+            const list = state.stations.length > 0 ? state.stations : state.favorites;
+            if (!list.length || !state.currentStation) return;
+
+            const idx = list.findIndex(s => s.stationuuid === state.currentStation.stationuuid);
+            const nextIdx = (idx + direction + list.length) % list.length;
+            playStation(list[nextIdx]);
+        }
+
+        function playStation(station) {
+            clearTimeout(state.reconnectTimer);
+            state.reconnectAttempts = 0;
+            state.manualPause = false;
+            state.currentStation = station;
+
+            const streamUrl = station.url_resolved || station.url;
+            const band = detectBand(station);
+
+            playerStationName.textContent = station.name;
+            playerBandBadge.textContent = band;
+            playerBandBadge.classList.remove('hidden');
+            mainPlayPauseBtn.disabled = false;
+            prevStationBtn.disabled = false;
+            nextStationBtn.disabled = false;
+            playerFavBtn.disabled = false;
+            updatePlayerFavIcon();
+
+            if (station.favicon) {
+                playerLogo.src = station.favicon;
+                playerLogo.classList.remove('hidden');
+                playerDefaultIcon.classList.add('hidden');
+            } else {
+                playerLogo.src = APP_ICON_URL;
+                playerLogo.classList.remove('hidden');
+                playerDefaultIcon.classList.add('hidden');
+            }
+
+            updateMediaSessionMetadata(station);
+            setPlayerStatus('connecting', 'Sintonizando emissora...');
+
+            if (!station.isCustom) {
+                fetch(`${currentApiBase}/json/url/${station.stationuuid}`).catch(() => {});
+            }
+
+            audio.pause();
+            audio.src = streamUrl;
+            audio.load();
+            
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    handleStreamFailure(station, streamUrl);
+                });
+            }
+
+            renderStations(state.stations);
+        }
+
+        function togglePlayPause() {
+            if (!state.currentStation) return;
+            if (audio.paused) {
+                state.manualPause = false;
+                state.reconnectAttempts = 0;
+                setPlayerStatus('connecting', 'Reconectando ao vivo...');
+                audio.play().catch(() => {
+                    handleStreamFailure(state.currentStation, state.currentStation.url_resolved || state.currentStation.url);
+                });
+            } else {
+                state.manualPause = true;
+                clearTimeout(state.reconnectTimer);
+                audio.pause();
+            }
+        }
+
+        mainPlayPauseBtn.addEventListener('click', togglePlayPause);
+
+        function setupAudioEvents() {
+            audio.addEventListener('waiting', () => {
+                if (!state.manualPause) {
+                    setPlayerStatus('connecting', 'Carregando buffer de áudio...');
+                }
+            });
+
+            audio.addEventListener('stalled', () => {
+                if (!state.manualPause && state.currentStation) {
+                    scheduleAutoReconnect();
+                }
+            });
+
+            audio.addEventListener('playing', () => {
+                state.isPlaying = true;
+                state.reconnectAttempts = 0;
+                clearTimeout(state.reconnectTimer);
+                iconPlay.classList.add('hidden');
+                iconPause.classList.remove('hidden');
+                playerEqualizer.classList.remove('hidden');
+                setPlayerStatus('live', 'AO VIVO • Sinal estável');
+                if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+                renderStations(state.stations);
+            });
+
+            audio.addEventListener('pause', () => {
+                state.isPlaying = false;
+                iconPlay.classList.remove('hidden');
+                iconPause.classList.add('hidden');
+                playerEqualizer.classList.add('hidden');
+                if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+                if (state.currentStation && state.manualPause) {
+                    setPlayerStatus('paused', 'Transmissão pausada');
+                }
+                renderStations(state.stations);
+            });
+
+            audio.addEventListener('error', () => {
+                if (!state.manualPause && state.currentStation) {
+                    scheduleAutoReconnect();
+                }
+            });
+        }
+
+        function scheduleAutoReconnect() {
+            if (state.reconnectAttempts < state.maxReconnectAttempts) {
+                state.reconnectAttempts++;
+                setPlayerStatus('connecting', `Sinal oscilou. Reconectando (${state.reconnectAttempts}/${state.maxReconnectAttempts})...`);
+                clearTimeout(state.reconnectTimer);
+                state.reconnectTimer = setTimeout(() => {
+                    if (!state.manualPause && state.currentStation) {
+                        const url = state.currentStation.url_resolved || state.currentStation.url;
+                        audio.src = url;
+                        audio.load();
+                        audio.play().catch(() => scheduleAutoReconnect());
+                    }
+                }, 3000);
+            } else {
+                const url = state.currentStation.url_resolved || state.currentStation.url;
+                handleStreamFailure(state.currentStation, url);
+            }
+        }
+
+        function handleStreamFailure(station, streamUrl) {
+            state.isPlaying = false;
+            iconPlay.classList.remove('hidden');
+            iconPause.classList.add('hidden');
+            playerEqualizer.classList.add('hidden');
+
+            if (isMixedContentHttp(streamUrl)) {
+                setPlayerStatus('error', 'Bloqueado: Stream HTTP em página segura (HTTPS)');
+                showToast(
+                    `A rádio "${station.name}" transmite em HTTP antigo e foi bloqueada pelo navegador.`,
+                    'error',
+                    streamUrl
+                );
+            } else {
+                setPlayerStatus('error', 'Estação fora do ar no momento');
+                showToast(`Não foi possível conectar à "${station.name}". Tente outra emissora.`, 'error');
+            }
+            renderStations(state.stations);
+        }
+
+        function setPlayerStatus(type, text) {
+            playerStatusText.textContent = text;
+            switch (type) {
+                case 'connecting':
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0';
+                    playerStatusText.className = 'text-[11px] sm:text-xs text-amber-400 font-medium truncate';
+                    break;
+                case 'live':
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] shrink-0';
+                    playerStatusText.className = 'text-[11px] sm:text-xs text-emerald-400 font-semibold truncate';
+                    break;
+                case 'paused':
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0';
+                    playerStatusText.className = 'text-[11px] sm:text-xs text-slate-400 truncate';
+                    break;
+                case 'error':
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0';
+                    playerStatusText.className = 'text-[11px] sm:text-xs text-rose-400 font-medium truncate';
+                    break;
+            }
+        }
+
+        function setupMediaSession() {
+            if (!('mediaSession' in navigator)) return;
+
+            navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+            navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+            navigator.mediaSession.setActionHandler('stop', () => {
+                state.manualPause = true;
+                audio.pause();
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', () => playAdjacentStation(-1));
+            navigator.mediaSession.setActionHandler('nexttrack', () => playAdjacentStation(1));
+        }
+
+        function updateMediaSessionMetadata(station) {
+            if (!('mediaSession' in navigator)) return;
+            const loc = [station.state, station.country].filter(Boolean).join(', ') || 'Rádio do Helenio';
+            const artworkUrl = station.favicon || generatedAppIconUrl;
+
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: station.name,
+                artist: loc,
+                album: 'Rádio do Helenio • Ao Vivo',
+                artwork: artworkUrl ? [
+                    { src: artworkUrl, sizes: '512x512', type: 'image/png' }
+                ] : []
+            });
+        }
+
+        /* ==========================================================================
+           6. TEMPORIZADOR DE DESLIGAMENTO (SLEEP TIMER)
+           ========================================================================== */
+        function toggleSleepMenu() {
+            document.getElementById('sleepMenu').classList.toggle('hidden');
+        }
+
+        function setSleepTimer(minutes) {
+            document.getElementById('sleepMenu').classList.add('hidden');
+            clearInterval(state.sleepInterval);
+
+            const badge = document.getElementById('sleepCountdownBadge');
+            const label = document.getElementById('sleepTimerLabel');
+
+            if (!minutes || minutes <= 0) {
+                state.sleepEndTime = null;
+                badge.classList.add('hidden');
+                label.classList.remove('hidden');
+                showToast('Temporizador de desligamento desativado.');
+                return;
+            }
+
+            state.sleepEndTime = Date.now() + minutes * 60 * 1000;
+            label.classList.add('hidden');
+            badge.classList.remove('hidden');
+            showToast(`O rádio será desligado automaticamente em ${minutes} minutos.`);
+
+            updateSleepCountdown();
+            state.sleepInterval = setInterval(updateSleepCountdown, 1000);
+        }
+
+        function updateSleepCountdown() {
+            const remaining = state.sleepEndTime - Date.now();
+            const badge = document.getElementById('sleepCountdownBadge');
+            const label = document.getElementById('sleepTimerLabel');
+
+            if (remaining <= 0) {
+                clearInterval(state.sleepInterval);
+                state.sleepEndTime = null;
+                badge.classList.add('hidden');
+                label.classList.remove('hidden');
+
+                if (!audio.paused) {
+                    state.manualPause = true;
+                    audio.pause();
+                    setPlayerStatus('paused', 'Desligado pelo Sleep Timer');
+                }
+                showToast('Sleep Timer concluído: áudio pausado.');
+                return;
+            }
+
+            const totalSec = Math.ceil(remaining / 1000);
+            const mins = Math.floor(totalSec / 60);
+            const secs = totalSec % 60;
+            badge.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        /* ==========================================================================
+           7. CONTROLE DE VOLUME & MUDO
+           ========================================================================== */
+        function setupVolumeControls() {
+            audio.volume = state.volume;
+
+            volumeSlider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                state.volume = val / 100;
+                audio.volume = state.volume;
+                if (state.volume > 0 && state.isMuted) {
+                    state.isMuted = false;
+                    audio.muted = false;
+                }
+                updateVolumeUI(val);
+            });
+
+            muteBtn.addEventListener('click', () => {
+                state.isMuted = !state.isMuted;
+                audio.muted = state.isMuted;
+                if (state.isMuted) {
+                    updateVolumeUI(0);
+                } else {
+                    const restored = Math.round(state.volume * 100) || 50;
+                    if (state.volume === 0) {
+                        state.volume = 0.5;
+                        audio.volume = 0.5;
+                    }
+                    volumeSlider.value = restored;
+                    updateVolumeUI(restored);
+                }
+            });
+        }
+
+        function updateVolumeUI(percent) {
+            volumePercent.textContent = `${percent}%`;
+            if (percent === 0 || state.isMuted) {
+                volHighSvg.classList.add('hidden');
+                volMuteSvg.classList.remove('hidden');
+            } else {
+                volHighSvg.classList.remove('hidden');
+                volMuteSvg.classList.add('hidden');
+            }
+        }
+
+        /* ==========================================================================
+           8. FAVORITOS, ADIÇÃO MANUAL DE URL & BACKUP JSON
+           ========================================================================== */
+        function toggleFavorite(uuid, event) {
+            if (event) event.stopPropagation();
+
+            const existingIndex = state.favorites.findIndex(f => f.stationuuid === uuid);
+            if (existingIndex > -1) {
+                const removed = state.favorites.splice(existingIndex, 1)[0];
+                showToast(`"${removed.name}" removida dos favoritos.`);
+            } else {
+                const station = state.stations.find(s => s.stationuuid === uuid) 
+                             || (state.currentStation?.stationuuid === uuid ? state.currentStation : null);
+                if (station) {
+                    state.favorites.unshift(station);
+                    showToast(`"${station.name}" salva nos favoritos!`);
+                }
+            }
+
+            saveFavorites();
+            if (state.activeFilter === 'favoritos') {
+                state.stations = state.favorites;
+            }
+            renderStations(state.stations);
+        }
+
+        playerFavBtn.addEventListener('click', () => {
+            if (state.currentStation) {
+                toggleFavorite(state.currentStation.stationuuid);
+            }
+        });
+
+        function saveFavorites() {
+            localStorage.setItem('radio_helenio_favs', JSON.stringify(state.favorites));
+            updateFavCounter();
+            updatePlayerFavIcon();
+        }
+
+        function updateFavCounter() {
+            favCount.textContent = state.favorites.length;
+        }
+
+        function updatePlayerFavIcon() {
+            if (!state.currentStation) return;
+            const isFav = state.favorites.some(f => f.stationuuid === state.currentStation.stationuuid);
+            if (isFav) {
+                playerFavSvg.classList.add('text-rose-500', 'fill-rose-500');
+            } else {
+                playerFavSvg.classList.remove('text-rose-500', 'fill-rose-500');
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById('addRadioModal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('addRadioModal').classList.add('hidden');
+            document.getElementById('customRadioForm').reset();
+        }
+
+        document.getElementById('customRadioForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('customName').value.trim();
+            const location = document.getElementById('customLocation').value.trim();
+            const band = document.getElementById('customBand').value;
+            const url = document.getElementById('customUrl').value.trim();
+
+            if (!name || !url) return;
+
+            const newStation = {
+                stationuuid: 'custom-' + Date.now(),
+                name: name,
+                state: location || 'Rádio Customizada',
+                country: 'Brasil',
+                url: url,
+                url_resolved: url,
+                favicon: '',
+                tags: band.toLowerCase(),
+                customBand: band,
+                isCustom: true
+            };
+
+            state.favorites.unshift(newStation);
+            saveFavorites();
+            closeAddModal();
+            showToast(`Rádio "${name}" adicionada aos favoritos!`);
+            playStation(newStation);
+        });
+
+        function exportFavorites() {
+            if (state.favorites.length === 0) {
+                showToast('Você ainda não possui rádios favoritas para exportar.', 'error');
+                return;
+            }
+            const dataStr = JSON.stringify(state.favorites, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'radios_helenio_backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Backup exportado com sucesso!');
+        }
+
+        function importFavorites(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!Array.isArray(imported)) throw new Error('Formato inválido');
+
+                    let addedCount = 0;
+                    imported.forEach(item => {
+                        if (item.stationuuid && item.name && (item.url_resolved || item.url)) {
+                            const exists = state.favorites.some(f => f.stationuuid === item.stationuuid);
+                            if (!exists) {
+                                state.favorites.push(item);
+                                addedCount++;
+                            }
+                        }
+                    });
+
+                    saveFavorites();
+                    if (state.activeFilter === 'favoritos') {
+                        state.stations = state.favorites;
+                        renderStations(state.stations);
+                    }
+                    showToast(`${addedCount} ${addedCount === 1 ? 'rádio importada' : 'rádios importadas'} com sucesso!`);
+                } catch (err) {
+                    showToast('Arquivo de backup inválido.', 'error');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        /* ==========================================================================
+           9. UTILITÁRIOS (TOAST & SANITIZAÇÃO)
+           ========================================================================== */
+        let toastTimeout;
+        function showToast(message, type = 'info', actionUrl = null) {
+            const toast = document.getElementById('toastMessage');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+            const actionLink = document.getElementById('toastActionLink');
+
+            toastText.textContent = message;
+
+            if (actionUrl) {
+                actionLink.href = actionUrl;
+                actionLink.classList.remove('hidden');
+            } else {
+                actionLink.classList.add('hidden');
+            }
+
+            if (type === 'error') {
+                toast.className = 'fixed top-20 right-4 z-50 transition-all duration-300 bg-slate-900 border-l-4 border-rose-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-start gap-3 max-w-sm';
+                toastIcon.innerHTML = '<svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+            } else {
+                toast.className = 'fixed top-20 right-4 z-50 transition-all duration-300 bg-slate-900 border-l-4 border-amber-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-start gap-3 max-w-sm';
+                toastIcon.innerHTML = '<svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+            }
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            });
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+            }, actionUrl ? 7000 : 4000);
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag]));
+        }
+    </script>
+</body>
+</html>
