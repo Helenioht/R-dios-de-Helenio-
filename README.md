@@ -1,0 +1,1 @@
+no ginal da lista de radios, tem opção dd criar uma lista de mp3  a partir de seus arquivos de música, é bom para qdo faltar sinal de rede, crie a lista seke selecionando pas pasta ou dicersas músics, clique em selecionar tudo, e volte a clicar rm selecionar novamente, ira cobstrur umaista de música,ou biblioteca , , leva alguns segundos, tenha paciência, porque e unica vez
