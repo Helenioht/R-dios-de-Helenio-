@@ -403,6 +403,30 @@
                 </button>
             </div>
         </div>
+
+        <!-- Reprodutor de músicas locais -->
+        <section id="localMusicPanel" class="mb-6 rounded-2xl border border-amber-500/30 bg-slate-900/80 p-4 sm:p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div>
+                    <h2 class="font-display text-lg font-bold text-white">🎵 Minhas músicas MP3</h2>
+                    <p class="text-xs text-slate-400 mt-1">As músicas selecionadas serão guardadas neste aparelho para continuar disponíveis depois.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="document.getElementById('musicFolderInput').click()" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold">📁 Selecionar pasta</button>
+                    <button type="button" onclick="document.getElementById('musicFilesInput').click()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold">＋ Adicionar músicas</button>
+                    <button type="button" onclick="clearLocalMusic()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs">Limpar lista</button>
+                </div>
+            </div>
+            <input id="musicFolderInput" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.wav,.flac" webkitdirectory directory multiple class="hidden" onchange="addLocalMusic(event)">
+            <input id="musicFilesInput" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.wav,.flac" multiple class="hidden" onchange="addLocalMusic(event)">
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <span id="localMusicCount" class="text-xs text-slate-400">Nenhuma música selecionada</span>
+                <span id="localMusicFolderName" class="text-xs text-amber-300 truncate"></span>
+            </div>
+            <div id="localMusicList" class="max-h-52 overflow-y-auto space-y-1 rounded-xl bg-slate-950/70 p-2">
+                <p class="text-xs text-slate-500 text-center py-4">Sua lista de músicas aparecerá aqui.</p>
+            </div>
+        </section>
     </main>
 
     <!-- Botões Flutuantes de Rolagem da Tela -->
@@ -645,7 +669,11 @@
             pointerEnabled: true,
             pointerX: window.innerWidth / 2,
             pointerY: window.innerHeight / 2,
-            pointerSpeed: 28
+            pointerSpeed: 28,
+            localMode: false,
+            localTracks: [],
+            localTrackIndex: -1,
+            localObjectUrls: []
         };
 
         // Referências DOM
@@ -692,6 +720,7 @@
             setupMediaSession();
             setupVirtualMousePointer();
             renderSkeletons();
+            restoreLocalMusic();
             applyQuickFilter('br-top');
             updatePointerPosition();
 
@@ -1331,6 +1360,182 @@
         /* ==========================================================================
            5. REPRODUÇÃO, RECONEXÃO AUTOMÁTICA & MEDIA SESSION API (TELA DE BLOQUEIO)
            ========================================================================== */
+
+        /* Biblioteca local persistente: os arquivos são copiados para o IndexedDB do navegador. */
+        const LOCAL_MUSIC_DB = 'radio_helenio_music_library';
+        const LOCAL_MUSIC_STORE = 'tracks';
+
+        function openLocalMusicDB() {
+            return new Promise((resolve, reject) => {
+                if (!('indexedDB' in window)) return reject(new Error('Armazenamento local não disponível neste navegador.'));
+                const request = indexedDB.open(LOCAL_MUSIC_DB, 1);
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(LOCAL_MUSIC_STORE)) db.createObjectStore(LOCAL_MUSIC_STORE, { keyPath: 'key' });
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('Não foi possível abrir a biblioteca.'));
+            });
+        }
+
+        async function saveLocalMusicFile(file, key) {
+            const db = await openLocalMusicDB();
+            try {
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(LOCAL_MUSIC_STORE, 'readwrite');
+                    tx.objectStore(LOCAL_MUSIC_STORE).put({
+                        key, name: file.name, type: file.type || 'audio/mpeg',
+                        lastModified: file.lastModified || Date.now(), size: file.size, blob: file
+                    });
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                    tx.onabort = () => reject(tx.error || new Error('Armazenamento interrompido.'));
+                });
+            } finally { db.close(); }
+        }
+
+        async function restoreLocalMusic() {
+            try {
+                const db = await openLocalMusicDB();
+                const records = await new Promise((resolve, reject) => {
+                    const tx = db.transaction(LOCAL_MUSIC_STORE, 'readonly');
+                    const req = tx.objectStore(LOCAL_MUSIC_STORE).getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+                db.close();
+                records.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+                state.localTracks = records.map(record => {
+                    const file = new File([record.blob], record.name, { type: record.type, lastModified: record.lastModified });
+                    return { key: record.key, file, name: record.name.replace(/\.[^.]+$/, '') };
+                });
+                renderLocalMusicList();
+                if (records.length) document.getElementById('localMusicFolderName').textContent = 'Biblioteca salva neste aparelho';
+            } catch (error) {
+                console.warn('Não foi possível restaurar a biblioteca de músicas:', error);
+                showToast('Não foi possível recuperar as músicas salvas neste navegador.', 'error');
+            }
+        }
+
+        async function addLocalMusic(event) {
+            const files = Array.from(event.target.files || []);
+            const audioFiles = files.filter(file =>
+                /\.(mp3|m4a|aac|ogg|wav|flac|opus|wma)$/i.test(file.name) ||
+                (file.type && file.type.startsWith('audio/'))
+            );
+            const folder = audioFiles[0]?.webkitRelativePath?.split('/')[0];
+            event.target.value = '';
+            if (!audioFiles.length) {
+                showToast('Nenhum arquivo de áudio encontrado.', 'error');
+                return;
+            }
+            audioFiles.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+            let added = 0;
+            try {
+                for (const file of audioFiles) {
+                    const key = `${file.name}|${file.size}|${file.lastModified}`;
+                    if (state.localTracks.some(track => track.key === key)) continue;
+                    await saveLocalMusicFile(file, key);
+                    state.localTracks.push({ key, file, name: file.name.replace(/\.[^.]+$/, '') });
+                    added++;
+                }
+                if (folder) document.getElementById('localMusicFolderName').textContent = `Pasta copiada: ${folder}`;
+                else document.getElementById('localMusicFolderName').textContent = 'Músicas salvas neste aparelho';
+                renderLocalMusicList();
+                showToast(added ? `${added} música(s) copiadas e salvas no aparelho.` : 'Essas músicas já estão na lista.', 'info');
+                if (state.localTracks.length && state.localTrackIndex < 0) playLocalTrack(0);
+            } catch (error) {
+                console.error(error);
+                renderLocalMusicList();
+                showToast('O armazenamento do navegador não conseguiu copiar todos os arquivos. Verifique o espaço disponível.', 'error');
+            }
+        }
+
+        function renderLocalMusicList() {
+            const list = document.getElementById('localMusicList');
+            const count = document.getElementById('localMusicCount');
+            count.textContent = `${state.localTracks.length} música(s) na lista`;
+            if (!state.localTracks.length) {
+                list.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Sua lista de músicas aparecerá aqui.</p>';
+                return;
+            }
+            list.innerHTML = state.localTracks.map((track, index) => `
+                <button type="button" onclick="playLocalTrack(${index})" class="w-full flex items-center gap-2 text-left rounded-lg px-3 py-2 text-xs ${index === state.localTrackIndex && state.localMode ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-300 hover:bg-slate-800'}">
+                    <span class="text-amber-400">${index === state.localTrackIndex && state.localMode && state.isPlaying ? '▶' : '♫'}</span>
+                    <span class="truncate flex-1">${escapeHTML(track.name)}</span>
+                    <span class="text-slate-500">${(track.file.size / 1048576).toFixed(1)} MB</span>
+                </button>`).join('');
+        }
+
+        function playLocalTrack(index) {
+            if (index < 0 || index >= state.localTracks.length) return;
+            clearTimeout(state.reconnectTimer);
+            state.localMode = true;
+            state.manualPause = false;
+            state.currentStation = null;
+            state.localTrackIndex = index;
+            const track = state.localTracks[index];
+            if (audio.dataset.localObjectUrl) URL.revokeObjectURL(audio.dataset.localObjectUrl);
+            const objectUrl = URL.createObjectURL(track.file);
+            audio.dataset.localObjectUrl = objectUrl;
+            playerStationName.textContent = track.name;
+            playerBandBadge.textContent = 'MP3';
+            playerBandBadge.classList.remove('hidden');
+            playerLogo.classList.add('hidden');
+            playerDefaultIcon.classList.remove('hidden');
+            mainPlayPauseBtn.disabled = false;
+            prevStationBtn.disabled = state.localTracks.length < 2;
+            nextStationBtn.disabled = state.localTracks.length < 2;
+            playerFavBtn.disabled = true;
+            setPlayerStatus('connecting', 'Reproduzindo música do aparelho...');
+            audio.pause();
+            audio.src = objectUrl;
+            audio.load();
+            audio.play().then(() => renderLocalMusicList()).catch(() => {
+                setPlayerStatus('error', 'Não foi possível reproduzir este arquivo.');
+                showToast('Não foi possível abrir esta música.', 'error');
+            });
+            renderLocalMusicList();
+        }
+
+        async function clearLocalMusic() {
+            if (state.localMode) {
+                audio.pause();
+                state.localMode = false;
+                state.localTrackIndex = -1;
+                state.currentStation = null;
+                audio.removeAttribute('src');
+                audio.load();
+                mainPlayPauseBtn.disabled = true;
+                prevStationBtn.disabled = true;
+                nextStationBtn.disabled = true;
+                playerStationName.textContent = 'Nenhuma rádio sintonizada';
+                setPlayerStatus('paused', 'Selecione uma rádio ou música');
+            }
+            if (audio.dataset.localObjectUrl) {
+                URL.revokeObjectURL(audio.dataset.localObjectUrl);
+                delete audio.dataset.localObjectUrl;
+            }
+            state.localTracks = [];
+            state.localTrackIndex = -1;
+            document.getElementById('localMusicFolderName').textContent = '';
+            renderLocalMusicList();
+            try {
+                const db = await openLocalMusicDB();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(LOCAL_MUSIC_STORE, 'readwrite');
+                    tx.objectStore(LOCAL_MUSIC_STORE).clear();
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
+                db.close();
+                showToast('Lista e músicas salvas apagadas.', 'info');
+            } catch (error) {
+                console.error(error);
+                showToast('A lista foi limpa, mas não foi possível apagar a cópia armazenada.', 'error');
+            }
+        }
+
         function playStationById(uuid) {
             const station = state.stations.find(s => s.stationuuid === uuid) 
                          || state.favorites.find(s => s.stationuuid === uuid);
@@ -1344,6 +1549,11 @@
         }
 
         function playAdjacentStation(direction) {
+            if (state.localMode) {
+                const total = state.localTracks.length;
+                if (total) playLocalTrack((state.localTrackIndex + direction + total) % total);
+                return;
+            }
             const list = state.stations.length > 0 ? state.stations : state.favorites;
             if (!list.length || !state.currentStation) return;
 
@@ -1353,6 +1563,7 @@
         }
 
         function playStation(station) {
+            state.localMode = false;
             clearTimeout(state.reconnectTimer);
             state.reconnectAttempts = 0;
             state.manualPause = false;
@@ -1402,6 +1613,11 @@
         }
 
         function togglePlayPause() {
+            if (state.localMode) {
+                if (audio.paused) { state.manualPause = false; audio.play().catch(() => {}); }
+                else { state.manualPause = true; audio.pause(); }
+                return;
+            }
             if (!state.currentStation) return;
             if (audio.paused) {
                 state.manualPause = false;
@@ -1421,13 +1637,13 @@
 
         function setupAudioEvents() {
             audio.addEventListener('waiting', () => {
-                if (!state.manualPause) {
+                if (!state.localMode && !state.manualPause) {
                     setPlayerStatus('connecting', 'Carregando buffer de áudio...');
                 }
             });
 
             audio.addEventListener('stalled', () => {
-                if (!state.manualPause && state.currentStation) {
+                if (!state.localMode && !state.manualPause && state.currentStation) {
                     scheduleAutoReconnect();
                 }
             });
@@ -1442,6 +1658,7 @@
                 setPlayerStatus('live', 'AO VIVO • Sinal estável');
                 if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
                 renderStations(state.stations);
+                if (state.localMode) renderLocalMusicList();
             });
 
             audio.addEventListener('pause', () => {
@@ -1454,10 +1671,14 @@
                     setPlayerStatus('paused', 'Transmissão pausada');
                 }
                 renderStations(state.stations);
+                if (state.localMode) renderLocalMusicList();
             });
 
+            audio.addEventListener('ended', () => {
+                if (state.localMode && state.localTracks.length) playLocalTrack((state.localTrackIndex + 1) % state.localTracks.length);
+            });
             audio.addEventListener('error', () => {
-                if (!state.manualPause && state.currentStation) {
+                if (!state.localMode && !state.manualPause && state.currentStation) {
                     scheduleAutoReconnect();
                 }
             });
